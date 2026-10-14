@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Icona "profilo" della barra in basso: il classico mezzo busto
+    stilizzato (testa + spalle), ridisegnato a mano come contorno, nello
+    stile della foto di riferimento fornita da Alessandro il 2026-09-18
+    (profile.jpeg, immagine stock con metadati di copyright Rawpixel, non
+    riutilizzata direttamente - solo usata come schema compositivo).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M 15.5,7.3 A 3.5,3.5 0 1 1 8.5,7.3 A 3.5,3.5 0 1 1 15.5,7.3 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7" />
+    <path
+        android:pathData="M 5,19.3 L 5,17.1 A 7,6.4 0 0 1 19,17.1 L 19,19.3 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineJoin="round" />
+</vector>

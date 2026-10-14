@@ -1,0 +1,18 @@
+# Dipendenze esterne per build_routing_graph_v3.py (vedi il suo docstring).
+# v1 (build_routing_graph.py) e v2 (build_routing_graph_v2.py) restano
+# invariate, con le sole dipendenze di scripts/requirements.txt (shapely,
+# Pillow) - questo file serve solo alla variante v3, e solo per usare
+# neatnet (parametro use_neatnet = true in precompila_parametri.txt).
+# Se use_neatnet resta false (default: loop A/B/B2/C/D) v3 richiede
+# comunque le dipendenze di requirements.txt, ma NON queste qui sotto -
+# geopandas/neatnet/pyproj sono importate solo "lazy", dentro
+# _neatnet_preprocess(), proprio per non obbligare chi non usa neatnet
+# a installarle.
+#
+#   pip3 install -r scripts/requirements.txt
+#   pip3 install -r scripts/requirements_v3.txt
+shapely>=2.0
+Pillow>=10.0
+geopandas>=0.14
+neatnet
+pyproj>=3.5

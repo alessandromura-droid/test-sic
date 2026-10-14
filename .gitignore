@@ -1,0 +1,35 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+CLAUDE.m
+_claude_scratch
+Claude outputs/
+
+howto.txt
+
+# --- aggiunte 2026-10-14 (pubblicazione del codice su GitHub) ---
+# SEGRETI: token GitHub usato da precompila per pubblicare i JSON
+token.txt
+# Android Studio / Kotlin
+.idea/
+.kotlin/
+# Python
+__pycache__/
+*.pyc
+# dati scaricati, cache e output della pipeline (centinaia di MB; i JSON per
+# l'app sono pubblicati nella Release GitHub)
+percorsi/raw/
+percorsi/build/

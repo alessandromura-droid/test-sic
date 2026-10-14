@@ -1,0 +1,272 @@
+# Parametri di precompila_v2 (build_routing_graph_v2.py).
+# Modifica un valore qui sotto e rilancia precompila_v2: non serve
+# toccare il codice. Un parametro mancante, commentato (con #) o con
+# un valore non valido (testo al posto di un numero, ecc.) resta
+# semplicemente al suo default - non blocca mai la build.
+
+# Diametro massimo (metri) di un gruppo di nodi fusi insieme (passo
+# B del clustering) - un incrocio reale piu' largo di cosi' resta
+# su piu' nodi distinti invece di diventarne uno solo.
+node_cluster_max_diameter_m = 30.0
+
+# Oltre questo numero di incroci (passo C), una coppia di archi e'
+# considerata doppione/parallelismo spurio e scartata per intero.
+max_crossings_per_pair = 2
+
+# Distanza massima (metri) fra l'estremita' "a vuoto" di un arco e
+# il tracciato di un altro arco perche' il passo D li colleghi
+# (caso tipico: stesso incrocio reale digitalizzato da due fonti
+# con un piccolo scarto).
+dangle_tolerance_m = 50.0
+
+# Soglia (gradi) oltre la quale un vertice e' un'inversione
+# "avanti e indietro" da rimuovere (angolo fra vettore di entrata
+# e di uscita).
+uturn_angle_threshold_deg = 160.0
+
+# Dimensione (pixel) del lato del canvas quadrato di ogni JPEG di
+# debug per sorgente.
+debug_image_size_px = 8000
+
+# Spessore (pixel) delle linee degli archi nelle JPEG di debug.
+debug_image_edge_width_px = 3
+
+# Raggio (pixel) dei pallini rossi dei nodi nelle JPEG di debug.
+debug_image_node_radius_px = 2.0
+
+# Latitudine del centro dell'area fissa inquadrata nelle JPEG di
+# debug (default: Piazza Venezia, "Roma km 0").
+debug_image_center_lat = 41.896435
+
+# Longitudine del centro dell'area fissa inquadrata nelle JPEG di
+# debug.
+debug_image_center_lon = 12.482531
+
+# Raggio (km) dell'area inquadrata nelle JPEG di debug - meta' del
+# lato del quadrato (20 = area 40x40km). La risoluzione (m/px) si
+# ricalcola da sola da questo raggio e da debug_image_size_px.
+debug_image_radius_km = 20.0
+
+# Latitudine del centro dell'area in cui RouteCoherenceTest sceglie
+# partenza e arrivo dei percorsi di test (default: Piazza Venezia).
+debug_route_test_center_lat = 41.896435
+
+# Longitudine del centro dell'area in cui RouteCoherenceTest sceglie
+# partenza e arrivo dei percorsi di test.
+debug_route_test_center_lon = 12.482531
+
+# Raggio (km) del cerchio, attorno al centro sopra, dentro cui devono
+# stare partenza e arrivo dei percorsi di RouteCoherenceTest (il
+# percorso in mezzo puo' uscire). Letto solo dal test Kotlin.
+debug_route_test_radius_km = 20.0
+
+# Colore delle linee degli archi nelle JPEG di debug, 'r,g,b' (0-255
+# ciascuno) - libero, per distinguerli bene dallo sfondo OSM.
+debug_image_edge_color = 0,200,20
+
+# Colore dei pallini dei nodi nelle JPEG di debug, 'r,g,b'.
+debug_image_node_color = 220,20,20
+
+# --- parametri aggiunti automaticamente da una versione piu'
+# recente dello script (non toccano le righe sopra) ---
+
+# Tre modalita': 'disable' (default) solo il nostro loop A/B/B2/C/D;
+# 'enable' solo neatnet + una passata del nostro codice come rete di
+# sicurezza; 'both' neatnet PRIMA, poi il loop completo (non una sola
+# passata) - vedi il docstring del modulo per i dettagli.
+use_neatnet = disable
+
+# Tetto di sicurezza al numero di iterazioni del loop A/B/B2/C/D per-
+# sorgente quando use_neatnet e' false - la convergenza non e'
+# garantita, quindi il loop si ferma comunque qui se non si stabilizza.
+source_pass_max_iterations = 10
+
+# --- parametri aggiunti automaticamente da una versione piu'
+# recente dello script (non toccano le righe sopra) ---
+
+# Raggio (metri) per raggruppare in zone i punti dove il loop per-sorgente
+# non converge entro source_pass_max_iterations: due punti piu' vicini di
+# cosi' stanno nello stesso cluster (anche a catena). L'elenco finisce in
+# percorsi/build/routing_v3/debug_images/residual_errors.txt.
+residual_cluster_radius_m = 100.0
+
+# =================== INTERRUTTORI MAPPE E LAYER ===================
+# Blocco riscritto automaticamente a ogni lancio di build_routing_graph_v3
+# (i valori impostati qui vengono conservati). process_<mappa> = false spegne
+# la mappa e TUTTI i suoi layer, qualunque sia il valore dei layer_ sotto.
+# I layer nuovi nascono accesi (per SIC solo quelli di SIC_LAYER_DEFAULT_ON).
+
+# ==================================================================
+# rsm_piste_ciclabili - RSM - piste ciclabili ufficiali
+process_rsm_piste_ciclabili = false
+layer_rsm_piste_ciclabili_rsm = true
+
+# ==================================================================
+# osm_extract - OpenStreetMap - infrastruttura ciclabile
+process_osm_extract = false
+layer_osm_roma_ciclabili = true
+
+# ==================================================================
+# g3w_ciclovie_metropolitane - Citta' Metropolitana - progetti ciclovie
+process_g3w_ciclovie_metropolitane = false
+layer_g3w_1_cerveteri_tratto_2 = true
+layer_g3w_2_cerveteri_tratto_5 = true
+layer_g3w_3cerveteri_tratto_10 = true
+layer_g3w_4_cerveteri_tratto_11 = true
+layer_g3w_5_ladispoli_tratto_12 = true
+layer_g3w_6_ladispoli_tratto_14 = true
+layer_g3w_7_fiumicino_argine_tevere_confine_comune_di_roma = true
+layer_g3w_8_fontenuova_pista_ciclopedonale_torlupara_santalucia = true
+layer_g3w_9_marino_parco_della_pace_parco_sassone = true
+layer_g3w_a297_01_via_romana = true
+layer_g3w_a323_01_tratto_di_anzio = true
+layer_g3w_a449_01_pista_ciclabile_monumento_naturale_lago_di_giulianello = true
+layer_g3w_b496_01_pista_ciclabile_francigena = true
+layer_g3w_c390_01 = true
+layer_g3w_c552_01_tratto_cerveteri_centro = true
+layer_g3w_c552_02_tratto_cerveteri_marina = true
+layer_g3w_c767_01_ciclovia_eurovelo_tratto_lanuvio = true
+layer_g3w_c773_01 = true
+layer_g3w_c858_01_1stralcio_funzionale = true
+layer_g3w_c858_01_pista_ciclabile_tra_asl_e_quartiere_quarto_miglio_2_stralcio = true
+layer_g3w_civitavecchia_palidoro_indicatori = true
+layer_g3w_d561_01_via_tiberina = true
+layer_g3w_d561_02_completamento_anello_ciclabile = true
+layer_g3w_d707_01_parco_lineare_di_formello_variante_formellese = true
+layer_g3w_d707_01_parco_lineare_di_formello_previsione_prg_tracks = true
+layer_g3w_d707_01_ciclovia_romea_francigena_nel_parco_di_vejo = true
+layer_g3w_d773_01_universita_tor_vergata_frascati = true
+layer_g3w_d773_01_punti_di_interesse = true
+layer_g3w_d964_01 = true
+layer_g3w_e958_01_santa_maria_delle_mole_cava_dei_selci = true
+layer_g3w_e958_02_pista_ciclabile_s_maria_delle_mole_cava_dei_selci = true
+layer_g3w_e958_03_percorso_ciclopedonale_dei_parchi = true
+layer_g3w_f127_01_pista_ciclabile_nordest_grab = true
+layer_g3w_f477_01 = true
+layer_g3w_f865_01 = true
+layer_g3w_f865_01_punti_di_collegamento = true
+layer_g3w_f880_01_tratto_di_nettuno = true
+layer_g3w_g274_01_pista_ciclabile_ex_ss155 = true
+layer_g3w_h432_01 = true
+layer_g3w_h501_01_ciclovia_delle_valli = true
+layer_g3w_h501_02_municipio_ii_sistema_ciclabile_quartiere_flaminio = true
+layer_g3w_h501_03_sentiero_del_pellegrino = true
+layer_g3w_h501_04_municipio_xiv_pfte_santa_maria_della_pieta_stazione_san_filippo_neri = true
+layer_g3w_h501_05_municipio_ix_vitinia_decima_malafede = true
+layer_g3w_h501_06_ostria_del_fosso = true
+layer_g3w_h501_07_municipio_vi_stazione_di_salone_gabii = true
+layer_g3w_h501_08_ciclopedonale_stazione_anagnina_municipio_vii = true
+layer_g3w_h501_09_municipio_iii_green_apsi_viadotto_dei_presidenti = true
+layer_g3w_h501_10_municipio_v_parco_lineare_dell_antica_via_collatina_da_porta_maggiore_a_gabii = true
+layer_g3w_h501_11_passeggiata_acquedotto_alessandrino = true
+layer_g3w_h501_12_municipio_xi_itinerario_ciclo_pedonale_arvalia_corviale = true
+layer_g3w_h501_13_universita_di_torvergata = true
+layer_g3w_h501_14_inviolatella_borghese_isola_farnese = true
+layer_g3w_i255_01_tratto_santa_marinella = true
+layer_g3w_i352_01_percorso_ciclopedonale_gli_eremi_e_il_soratte = true
+layer_g3w_i400_01 = true
+layer_g3w_i573_01_pista_ciclabile_di_via_della_mola = true
+layer_g3w_i573_01_aree_sosta = true
+layer_g3w_i573_01_percorso_cai = true
+layer_g3w_l182_01_percorso_ciclabile_area_urbana_di_tivoli = true
+layer_g3w_l182_02_ponte_mammolo_tivoli = true
+layer_g3w_l182_02_connessione = true
+layer_g3w_l182_02_indicatore = true
+layer_g3w_l182_02_sosta = true
+layer_g3w_l182_02_strada = true
+layer_g3w_l192_01_percorso_ciclabile_s_p_3a_braccianese_claudia = true
+layer_g3w_l401_01_pista_ciclabile_circumlacuale_bracciano = true
+layer_g3w_l401_01_aree_attrezzate_di_progetto = true
+layer_g3w_l639_01_percorso_ciclo_pedonale_pescolaro = true
+layer_g3w_l639_01_attrattori = true
+layer_g3w_l719_01_pista_ciclabile_ambito_dei_castelli_romani_in_bici_dai_castelli_romani_a_agroromano = true
+layer_g3w_m141_01_pista_ciclo_pedonale_san_cesareo_zagarolo_sul_tracciato_della_dismessa_ferrovia_roma_fiuggi = true
+layer_g3w_m207_01_parte_del_progetto_del_parco_dei_castelli = true
+layer_g3w_m212_01_tratto_ladispoli = true
+layer_g3w_m212_02_percorso_ciclopedonale_torre_flavia_ladispoli_centro = true
+layer_g3w_m213_01_ciclovia_fluviale_vetus_ardea_birota_latino_rutula_nel_lazio_virgiliano = true
+layer_g3w_m297_02_fregene_maccarese_fiume_arrone = true
+layer_g3w_m297_03_maccarese_fregene = true
+layer_g3w_m297_04_maccarese_passo_scuro = true
+layer_g3w_prms_01_ciclovia_di_san_benedetto = true
+layer_g3w_protocollo_di_intesa_xii_cm_xi_cm_comune_di_valmontone_munic_iv_v_e_vi = true
+layer_g3w_rete_di_percorsi_e_ciclovie_confluenti_a_roma_da_sud = true
+layer_g3w_biovie_aree_di_sosta_albano = true
+layer_g3w_biovie_aree_di_sosta_ciampino = true
+layer_g3w_biovie_aree_di_sosta_grottaferrata = true
+layer_g3w_biovie_aree_di_sosta_marino = true
+layer_g3w_biovie_aree_di_sosta_municipio_vi = true
+layer_g3w_biovie_fermate_albano = true
+layer_g3w_biovie_fermate_ciampino = true
+layer_g3w_biovie_fermate_grottaferrata = true
+layer_g3w_biovie_fermate_marino = true
+layer_g3w_biovie_fermate_municipio_vi = true
+layer_g3w_biovie_mun_vii_eseguite = true
+layer_g3w_biovie_mun_vii_previsione = true
+layer_g3w_biovie_tracciato_albano = true
+layer_g3w_biovie_tracciato_ciampino = true
+layer_g3w_biovie_tracciato_grottaferrata = true
+layer_g3w_biovie_tracciato_marino = true
+layer_g3w_biovie_tracciato_mun7 = true
+layer_g3w_biovie_tracciato_municipio_vi = true
+layer_g3w_buffer_confine_cmrc = true
+layer_g3w_ciclovie_transitorie_delibera_n76_del_30_aprile_20 = true
+layer_g3w_ciclovie_transitorie_modocimer = true
+layer_g3w_ciclovie_transitorie_torvergata = true
+layer_g3w_cmrc_istituti_scolastici = true
+layer_g3w_confine_cmrc = true
+layer_g3w_confini_comunali = true
+layer_g3w_ex_stazioni_ciclovie_asbhy = true
+layer_g3w_ferrovie = true
+layer_g3w_ferrovie_stazioni = true
+layer_g3w_municipi_di_roma = true
+layer_g3w_oasi_wwf = true
+layer_g3w_parco_vejo_percorso_ciclopedonale = true
+layer_g3w_piste_ciclabili_openstreetmap = true
+layer_g3w_piste_ciclabili_esistenti_roma_dorsali = true
+layer_g3w_piste_esistenti_fase_attuazione = true
+layer_g3w_programma_bicitalia = true
+layer_g3w_programma_eurovelo = true
+layer_g3w_rete_ciclabile_minore = true
+layer_g3w_rl_aree_naturali_protette = true
+layer_g3w_rl_rete_natura2000 = true
+layer_g3w_siti_unesco = true
+layer_g3w_strutture_sanitarie_2019 = true
+layer_g3w_uni_strutture_sanitarie_2019 = true
+
+# ==================================================================
+# salvaiciclisti_sicrm - SIC
+process_salvaiciclisti_sicrm = true
+layer_sic_biciplan_2025 = false
+layer_sic_biciplan_municipi = false
+layer_sic_ciclabiliesist_municipi = true
+layer_sic_ciclostazioni = false
+layer_sic_municipi = false
+layer_sic_pums_2018 = false
+layer_sic_passaggi_segreti = true
+layer_sic_punti_riparazione_bici = true
+layer_sic_web_zone30p = false
+layer_sic_autorimessebikefriendly = true
+layer_sic_bikeboxes_comune_di_roma = true
+layer_sic_infrastrutture_ostacoli_interruzioni = true
+layer_sic_negozibikefriendly = true
+layer_sic_rastrelliere = true
+layer_sic_strade_scolastiche = true
+
+# ==================================================================
+# salvaiciclisti_ciclopolitana - Salvaiciclisti - Ciclopolitana (rete concettuale, non e' un tracciato reale)
+process_salvaiciclisti_ciclopolitana = false
+layer_ciclopolitana_ciclopolitana_di_roma_2021 = true
+layer_ciclopolitana_ciclopolitane_ciclonvallazioni = true
+
+# ==================================================================
+# raccordi - Raccordi - tratti di strada che collegano la rete SIC
+process_raccordi = true
+layer_raccordi_raccordi = true
+
+# ==================================================================
+# debug - Debug - sottoinsieme minimo estratto a mano per isolare un bug (non e' una sorgente reale)
+process_debug = false
+layer_debug_debug = true
+
+# ================= FINE INTERRUTTORI MAPPE E LAYER =================

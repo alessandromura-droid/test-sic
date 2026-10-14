@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Salvaiciclisti" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Percorso Salvaiciclisti</name>
+    <trkseg>
+      <trkpt lat="41.89052669643417" lon="12.502725895974443" />
+      <trkpt lat="41.886907" lon="12.504753" />
+      <trkpt lat="41.881914" lon="12.497753" />
+      <trkpt lat="41.880362" lon="12.496659" />
+      <trkpt lat="41.879355" lon="12.495409" />
+      <trkpt lat="41.877568" lon="12.495306" />
+      <trkpt lat="41.874633" lon="12.496595" />
+      <trkpt lat="41.87582" lon="12.4964" />
+      <trkpt lat="41.875584" lon="12.496503" />
+      <trkpt lat="41.875012" lon="12.496804" />
+      <trkpt lat="41.874654" lon="12.496864" />
+      <trkpt lat="41.879082" lon="12.495712" />
+      <trkpt lat="41.878831" lon="12.495702" />
+      <trkpt lat="41.878771" lon="12.495696" />
+      <trkpt lat="41.878313" lon="12.495666" />
+      <trkpt lat="41.87761" lon="12.495643" />
+      <trkpt lat="41.87745" lon="12.495662" />
+      <trkpt lat="41.877242" lon="12.495726" />
+      <trkpt lat="41.876817" lon="12.495922" />
+      <trkpt lat="41.875868" lon="12.496379" />
+      <trkpt lat="41.879488" lon="12.495937" />
+      <trkpt lat="41.879335" lon="12.495737" />
+      <trkpt lat="41.879292" lon="12.495719" />
+      <trkpt lat="41.879238" lon="12.495716" />
+      <trkpt lat="41.879082" lon="12.495712" />
+      <trkpt lat="41.879739" lon="12.496059" />
+      <trkpt lat="41.879638" lon="12.495941" />
+      <trkpt lat="41.87962" lon="12.495942" />
+      <trkpt lat="41.879812" lon="12.496165" />
+      <trkpt lat="41.879776" lon="12.496121" />
+      <trkpt lat="41.879951" lon="12.496319" />
+      <trkpt lat="41.879891" lon="12.496249" />
+      <trkpt lat="41.882109" lon="12.498131" />
+      <trkpt lat="41.881932" lon="12.49779" />
+      <trkpt lat="41.881318" lon="12.497401" />
+      <trkpt lat="41.880283" lon="12.496639" />
+      <trkpt lat="41.88009" lon="12.496376" />
+      <trkpt lat="41.882113" lon="12.49855" />
+      <trkpt lat="41.882109" lon="12.498131" />
+      <trkpt lat="41.882065" lon="12.498581" />
+      <trkpt lat="41.882068" lon="12.498701" />
+      <trkpt lat="41.88198" lon="12.498876" />
+      <trkpt lat="41.881554" lon="12.498906" />
+      <trkpt lat="41.881535" lon="12.498956" />
+      <trkpt lat="41.881689" lon="12.499376" />
+    </trkseg>
+  </trk>
+</gpx>

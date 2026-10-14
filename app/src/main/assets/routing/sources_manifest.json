@@ -1,0 +1,29 @@
+{
+  "sources": [
+    {
+      "key": "rsm_piste_ciclabili",
+      "label": "RSM - piste ciclabili ufficiali",
+      "edges": 882
+    },
+    {
+      "key": "osm_extract",
+      "label": "OpenStreetMap - infrastruttura ciclabile",
+      "edges": 7491
+    },
+    {
+      "key": "g3w_ciclovie_metropolitane",
+      "label": "Citta' Metropolitana - progetti ciclovie",
+      "edges": 2399
+    },
+    {
+      "key": "salvaiciclisti_sicrm",
+      "label": "Salvaiciclisti - Mappone/Biciplan/Passaggi Segreti",
+      "edges": 2279
+    },
+    {
+      "key": "salvaiciclisti_ciclopolitana",
+      "label": "Salvaiciclisti - Ciclopolitana (rete concettuale, non e' un tracciato reale)",
+      "edges": 2023
+    }
+  ]
+}
