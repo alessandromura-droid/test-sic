@@ -1,0 +1,27 @@
+# test-sic - nel repository va SOLO il codice dell'app (Alessandro, 2026-11-04).
+# Elenco "a permesso": si ignora tutto nella cartella principale e si riammettono
+# solo i file e le cartelle dell'app. La pipeline dei dati (scripts/, percorsi/,
+# *_parametri.txt, regole.*, script MATLAB, token...) resta fuori anche se se ne
+# aggiungono di nuovi.
+/*
+!/.gitignore
+!/README.md
+!/app/
+!/gradle/
+!/build.gradle.kts
+!/settings.gradle.kts
+!/gradle.properties
+!/gradlew
+!/gradlew.bat
+
+# dentro l'app: build, file locali e mappe incluse a suo tempo nell'APK
+# (ora l'app le scarica; le mappe andranno in un repository a parte)
+/app/build/
+/app/src/main/assets/routing/
+.DS_Store
+*.iml
+.gradle/
+.kotlin/
+.cxx/
+.externalNativeBuild/
+local.properties

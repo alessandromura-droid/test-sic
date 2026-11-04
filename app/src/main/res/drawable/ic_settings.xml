@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Icona "settings" della barra in basso: un ingranaggio ridisegnato a
+    mano (contorno, non riempito), ispirato come stile/composizione
+    all'immagine di riferimento fornita da Alessandro il 2026-09-18
+    (settings.jpg, uno screenshot stock con watermark, non riutilizzato
+    direttamente - solo usato come schema per le proporzioni). Otto denti
+    "a merlatura" (poligono con 3 punti per dente: spalla esterna sx,
+    spalla esterna dx, valle interna) attorno a un anello centrale.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M 21.09,10.56 L 21.09,13.44 L 18.37,14.64 L 19.44,17.41 L 17.41,19.44 L 14.64,18.37 L 13.44,21.09 L 10.56,21.09 L 9.36,18.37 L 6.59,19.44 L 4.56,17.41 L 5.63,14.64 L 2.91,13.44 L 2.91,10.56 L 5.63,9.36 L 4.56,6.59 L 6.59,4.56 L 9.36,5.63 L 10.56,2.91 L 13.44,2.91 L 14.64,5.63 L 17.41,4.56 L 19.44,6.59 L 18.37,9.36 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.5"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M 14.90,12.00 A 2.90,2.90 0 1 1 9.10,12.00 A 2.90,2.90 0 1 1 14.90,12.00 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.5" />
+</vector>

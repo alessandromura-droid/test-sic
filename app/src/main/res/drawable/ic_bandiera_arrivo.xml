@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arrival marker (2026-10-26): checkered finish flag. The bottom of the pole
+     (x=3.75, y=22 of 24) is the anchor point, see MapScreen endMarker. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- pole -->
+    <path android:fillColor="#FF333333" android:pathData="M3,2h1.5v20h-1.5z" />
+    <!-- flag: white base with dark outline -->
+    <path android:fillColor="#FFFFFFFF" android:strokeColor="#FF222222" android:strokeWidth="0.4"
+        android:pathData="M4.5,3h15v10h-15z" />
+    <!-- black squares -->
+    <path android:fillColor="#FF111111" android:pathData="M4.5,3h2.5v2.5h-2.5zM9.5,3h2.5v2.5h-2.5zM14.5,3h2.5v2.5h-2.5zM7,5.5h2.5v2.5h-2.5zM12,5.5h2.5v2.5h-2.5zM17,5.5h2.5v2.5h-2.5zM4.5,8h2.5v2.5h-2.5zM9.5,8h2.5v2.5h-2.5zM14.5,8h2.5v2.5h-2.5zM7,10.5h2.5v2.5h-2.5zM12,10.5h2.5v2.5h-2.5zM17,10.5h2.5v2.5h-2.5z" />
+</vector>
