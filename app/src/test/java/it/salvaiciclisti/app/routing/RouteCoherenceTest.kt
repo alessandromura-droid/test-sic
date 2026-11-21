@@ -74,22 +74,16 @@ class RouteCoherenceTest {
      * sotto), invece di dover commentare via Assert.fail ogni volta. */
     private val forceInstall: Boolean = System.getProperty("routeCoherence.force", "false").toBoolean()
 
-    private val graph: RoutingGraph by lazy {
-        // graph.json non e' piu' un asset dell'app (Alessandro, 2026-09-21:
-        // l'app lo scarica da GitHub Releases invece di portarselo dentro
-        // l'APK, vedi RemoteMapDataRepository) - resta pero' generato in
-        // locale dalla pipeline sotto percorsi/build/<GRAPH_BUILD_DIR>/, un
-        // livello sopra la cartella del modulo app/, ed e' li' che questo test
-        // legge. Deve SEMPRE essere la versione di pipeline piu' recente (oggi
-        // v3), cioe' quella che l'app scarica da GitHub: vedi GRAPH_BUILD_DIR.
-        val file = File("../percorsi/build/$GRAPH_BUILD_DIR/graph.json")
-        check(file.exists()) {
-            "graph.json non trovato in ${file.absolutePath} - il test assume che il " +
-                "working dir del task di test sia la cartella del modulo app/ " +
-                "(percorsi/ e' un livello sopra) e che la pipeline ($GRAPH_BUILD_DIR) sia gia' stata eseguita"
-        }
+    /** (2026-11-20) Legge un grafo della pipeline da
+     * ../percorsi/build/<GRAPH_BUILD_DIR>/<nome> (il working dir del test e'
+     * la cartella del modulo app/). Null se il file non c'e'. GRAPH_BUILD_DIR
+     * deve SEMPRE essere la versione di pipeline piu' recente (oggi v4, la
+     * stessa inclusa nell'APK). */
+    private fun loadGraph(name: String): RoutingGraph? {
+        val file = File("../percorsi/build/$GRAPH_BUILD_DIR/$name")
+        if (!file.exists()) return null
         println("Grafo testato: ${file.path}")
-        GraphLoader.parse(file.readText())
+        return GraphLoader.parse(file.readText())
     }
 
     /** Area (cerchio) in cui devono cadere partenza e arrivo di ogni coppia
@@ -122,14 +116,12 @@ class RouteCoherenceTest {
 
     @Test
     fun `route geometry is coherent on the integrated map, on both engines`() {
-        // Mappa INTEGRATA, come l'app (Alessandro, 2026-10-13: "voglio 10+10 test
-        // di tutte le mappe insieme"): tutte le sorgenti presenti in graph.json,
-        // cioe' quelle abilitate (process_<sorgente> = true) in
-        // precompila_parametri.txt - le disabilitate non vengono nemmeno
-        // costruite. Niente piu' test sorgente per sorgente: con i raccordi
-        // (scripts/raccordi.py) una sorgente isolata non dice nulla.
-        val sources = graph.edges.map { it.source }.distinct().sorted()
-        val label = "integrata"
+        // Mappa INTEGRATA, come l'app (Alessandro, 2026-10-13): tutte le
+        // sorgenti presenti nel grafo. (2026-11-20) Due grafi, stesse coppie:
+        // "integrata" = graph.json (SIC + raccordi + accessi), "heatmap" =
+        // graph_heatmap.json (SIC + strade piu' percorse della heat map), per
+        // confrontare le due reti di supporto. Il grafo heat map e' facoltativo:
+        // se manca si testa solo graph.json.
         val engines = RoutingEngine.values().toList()
         val outDir = File("build/test-outputs/route-coherence").apply { mkdirs() }
         // Svuota i GPX del run precedente: altrimenti un _failed.gpx vecchio
@@ -140,84 +132,109 @@ class RouteCoherenceTest {
         var totalRoutes = 0
         var failedRoutes = 0
 
-        println("Sorgenti della mappa integrata: ${sources.joinToString(", ")}")
-        val filtered = FilteredGraph(graph, sources.toSet())
-        // Le coppie dipendono solo dal grafo, non dal motore: si calcolano una
-        // volta e si instradano con ENTRAMBI i motori, cosi' i due risultati
-        // sono sempre a parita' di partenza/arrivo.
+        val reti = mutableListOf<Pair<String, RoutingGraph>>()
+        val integrata = loadGraph("graph.json")
+        check(integrata != null) {
+            "graph.json non trovato in ${File("../percorsi/build/$GRAPH_BUILD_DIR").absolutePath} - il test assume " +
+                "che il working dir del task di test sia la cartella del modulo app/ e che la pipeline " +
+                "($GRAPH_BUILD_DIR) sia gia' stata eseguita"
+        }
+        reti.add("integrata" to integrata)
+        val heatmap = loadGraph("graph_heatmap.json")
+        if (heatmap != null) {
+            reti.add("heatmap" to heatmap)
+        } else {
+            println("graph_heatmap.json non trovato in ../percorsi/build/$GRAPH_BUILD_DIR: solo graph.json")
+        }
+
+        // Le coppie non dipendono ne' dal grafo ne' dal motore: si calcolano
+        // una volta e si instradano su ogni grafo con ENTRAMBI i motori. Il
+        // numero nel nome del GPX e' l'indice della coppia (stesso numero =
+        // stessa coppia su tutti i grafi e motori; un numero manca se quella
+        // coppia non ha percorso).
         val pairs = pickTestPairs()
         val distances = pairs.map { (a, b) -> haversineMeters(a, b) }
 
-        for (engine in engines) {
-            val enginePrefix = enginePrefixFor(engine)
-            var successCount = 0
-            var failedInGroup = 0
-            for ((start, end, startName, endName) in pairs) {
-                // (2026-10-14) Lo stesso calcolo dell'app: il percorso n.1 della
-                // nuova impostazione (costo pesato SIC/raccordi/salita, con le
-                // due valvole), coi parametri di default.
-                val route = findAppRoutes(
-                    filtered, start, end, AppRoutingParams(engine = engine, numeroPercorsi = 1),
-                ).firstOrNull()?.result
-                if (route == null) {
-                    // Con i raccordi ogni indirizzo dovrebbe essere collegato:
-                    // un percorso mancante e' un difetto, si segnala.
+        for ((label, graph) in reti) {
+            val sources = graph.edges.map { it.source }.distinct().sorted()
+            println("Sorgenti della mappa $label: ${sources.joinToString(", ")}")
+            val filtered = FilteredGraph(graph, sources.toSet())
+
+            for (engine in engines) {
+                val enginePrefix = enginePrefixFor(engine)
+                var successCount = 0
+                var failedInGroup = 0
+                for ((pairIdx, pair) in pairs.withIndex()) {
+                    val (start, end, startName, endName) = pair
+                    // (2026-10-14) Lo stesso calcolo dell'app: il percorso n.1 della
+                    // nuova impostazione (costo pesato SIC/raccordi/salita, con le
+                    // due valvole), coi parametri di default.
+                    val route = findAppRoutes(
+                        filtered, start, end, AppRoutingParams(engine = engine, numeroPercorsi = 1),
+                    ).firstOrNull()?.result
+                    if (route == null) {
+                        // Con i raccordi ogni indirizzo dovrebbe essere collegato:
+                        // un percorso mancante e' un difetto, si segnala.
+                        totalRoutes++
+                        failedInGroup++
+                        failedRoutes++
+                        problems.add(
+                            "[$enginePrefix] $label: nessun percorso da $startName (${start.lat}, ${start.lon}) " +
+                                "a $endName (${end.lat}, ${end.lon}) (seme $seed)",
+                        )
+                        continue
+                    }
+                    val idx = pairIdx
+                    successCount++
                     totalRoutes++
-                    failedInGroup++
-                    failedRoutes++
-                    problems.add(
-                        "[$enginePrefix] $label: nessun percorso da $startName (${start.lat}, ${start.lon}) " +
-                            "a $endName (${end.lat}, ${end.lon}) (seme $seed)",
+
+                    // Il nome del file si decide DOPO i controlli: un percorso
+                    // incoerente prende il suffisso "_failed". Il prefisso motore
+                    // (JGraphT-/inHouse-) tiene separati i due confronti.
+                    val points = route.steps.flatMap { it.geom }
+                    val routeProblems = mutableListOf<String>()
+                    checkNoBacktrack(points, end, label, idx, routeProblems)
+                    checkStepContinuity(route.steps, label, idx, routeProblems)
+                    checkNoImplausibleHop(route.steps, label, idx, routeProblems)
+                    val failed = routeProblems.isNotEmpty()
+
+                    val gpxFile = File(outDir, "$enginePrefix-${label}_$idx${if (failed) "_failed" else ""}.gpx")
+                    gpxFile.writeText(
+                        routeToGpx(route, trackName = "$enginePrefix $label #$idx", description = "$startName -> $endName"),
                     )
-                    continue
+                    if (failed) {
+                        failedInGroup++
+                        failedRoutes++
+                        problems.addAll(routeProblems.map { "[$enginePrefix] $it (GPX: ${gpxFile.name})" })
+                    }
                 }
-                val idx = successCount
-                successCount++
-                totalRoutes++
 
-                // Il nome del file si decide DOPO i controlli: un percorso
-                // incoerente prende il suffisso "_failed". Il prefisso motore
-                // (JGraphT-/inHouse-) tiene separati i due confronti.
-                val points = route.steps.flatMap { it.geom }
-                val routeProblems = mutableListOf<String>()
-                checkNoBacktrack(points, end, label, idx, routeProblems)
-                checkStepContinuity(route.steps, label, idx, routeProblems)
-                checkNoImplausibleHop(route.steps, label, idx, routeProblems)
-                val failed = routeProblems.isNotEmpty()
-
-                val gpxFile = File(outDir, "$enginePrefix-${label}_$idx${if (failed) "_failed" else ""}.gpx")
-                gpxFile.writeText(
-                    routeToGpx(route, trackName = "$enginePrefix $label #$idx", description = "$startName -> $endName"),
-                )
-                if (failed) {
-                    failedInGroup++
-                    failedRoutes++
-                    problems.addAll(routeProblems.map { "[$enginePrefix] $it (GPX: ${gpxFile.name})" })
+                val rangeText = if (distances.isEmpty()) {
+                    "nessun indirizzo nell'area di test"
+                } else {
+                    "distanza in linea d'aria tra %.1f e %.1f km".format(
+                        distances.min() / 1000.0,
+                        distances.max() / 1000.0,
+                    )
                 }
-            }
-
-            val rangeText = if (distances.isEmpty()) {
-                "nessun indirizzo nell'area di test"
-            } else {
-                "distanza in linea d'aria tra %.1f e %.1f km".format(
-                    distances.min() / 1000.0,
-                    distances.max() / 1000.0,
+                summary.add(
+                    "$enginePrefix $label: $successCount/${pairs.size} percorsi trovati e verificati, " +
+                        "$failedInGroup incoerente/i ($rangeText)",
                 )
             }
-            summary.add(
-                "$enginePrefix $label: $successCount/$PAIRS_PER_SOURCE percorsi trovati e verificati, " +
-                    "$failedInGroup incoerente/i ($rangeText)",
-            )
         }
 
-        val expectedRoutes = PAIRS_PER_SOURCE * engines.size
+        val expectedRoutes = pairs.size * engines.size * reti.size
         val failedPct = if (totalRoutes > 0) 100.0 * failedRoutes / totalRoutes else 0.0
         println(summary.joinToString("\n"))
-        println("Totale percorsi calcolati e verificati: $totalRoutes (atteso: $expectedRoutes = $PAIRS_PER_SOURCE coppie x ${engines.size} motori)")
+        println(
+            "Totale percorsi calcolati e verificati: $totalRoutes (atteso: $expectedRoutes = ${pairs.size} coppie x " +
+                "${engines.size} motori x ${reti.size} grafi)",
+        )
         println("Percorsi incoerenti: $failedRoutes/$totalRoutes (${"%.1f".format(failedPct)}%)")
         if (problems.isNotEmpty()) {
-            val detail = "${problems.size} problema/i su $failedRoutes percorso/i incoerente/i, mappa integrata x " +
-                "${engines.size} motori (GPX salvati in ${outDir.path}):\n" + problems.joinToString("\n---\n")
+            val detail = "${problems.size} problema/i su $failedRoutes percorso/i incoerente/i, " +
+                "${reti.joinToString("+") { it.first }} x ${engines.size} motori (GPX salvati in ${outDir.path}):\n" + problems.joinToString("\n---\n")
             if (forceInstall) {
                 // -Pforce attivo: si stampa il report per intero come
                 // avviso, ma il test PASSA comunque, cosi' non blocca
@@ -419,9 +436,9 @@ class RouteCoherenceTest {
     companion object {
         // Cartella (sotto percorsi/build/) del grafo testato: SEMPRE l'ultima
         // versione della pipeline, la stessa che l'app scarica da GitHub.
-        // Con una v4 (precompila_v4.py) diventa "routing_v4". Stesso valore
-        // va tenuto in plot_failed_gpx.m (graphBuildDir). Vedi le note di progetto.
-        private const val GRAPH_BUILD_DIR = "routing_v3"
+        // (2026-11-20: v4, la stessa inclusa nell'APK.) Stesso valore va tenuto in
+        // plot_failed_gpx.m e plot_all_gpx.m (graphBuildDir). Vedi le note di progetto.
+        private const val GRAPH_BUILD_DIR = "routing_v4"
         private const val DEFAULT_TEST_CENTER_LAT = 41.896435
         private const val DEFAULT_TEST_CENTER_LON = 12.482531
         private const val DEFAULT_TEST_RADIUS_KM = 20.0

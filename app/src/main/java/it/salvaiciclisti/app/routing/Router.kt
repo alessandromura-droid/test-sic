@@ -303,8 +303,11 @@ fun findRoute(
     end: LatLon,
     engine: RoutingEngine = RoutingEngine.IN_HOUSE,
     bannedEdges: Set<Int> = emptySet(),
+    snaps: Pair<GraphSnap, GraphSnap>? = null,
 ): RouteResult? {
-    val (startSnap, endSnap) = snapPairToGraph(filtered, start, end) ?: return null
+    // (2026-11-20) [snaps]: snap gia' calcolato dal chiamante per questa
+    // richiesta (vedi findAppRoutes), cosi' non si ripete per ogni candidato.
+    val (startSnap, endSnap) = snaps ?: snapPairToGraph(filtered, start, end) ?: return null
 
     // Short trip entirely within one edge: handle directly (identico per
     // entrambi i motori, non serve nessuna ricerca su grafo), la pipeline

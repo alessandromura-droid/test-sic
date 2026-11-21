@@ -67,10 +67,14 @@ import it.salvaiciclisti.app.routing.StreetEntry
 import it.salvaiciclisti.app.routing.dipendeDalVerde
 import it.salvaiciclisti.app.routing.closestPointOnSegment
 import it.salvaiciclisti.app.routing.findAppRoutes
+import it.salvaiciclisti.app.routing.unisciPercorsiReti
 import it.salvaiciclisti.app.routing.routeAscentDescent
 import it.salvaiciclisti.app.routing.routeSicOtherLengths
 import it.salvaiciclisti.app.routing.nearestPointTo
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.ITileSource
@@ -201,6 +205,9 @@ class MapSearchState {
     // Solo per l'avvio debug con partenza/arrivo (screenshot in serie):
     // inquadra i percorsi appena calcolati.
     var zoomToRoutes = false
+    // (2026-11-20) Incrementato quando l'avvio debug cambia le reti di
+    // supporto (extra "grafo"): MapScreen rilegge l'impostazione e i grafi.
+    var reteGen by mutableStateOf(0)
 }
 
 private fun ruleDisplayName(rule: RouteRule): String = when (rule) {
@@ -247,28 +254,37 @@ fun MapScreen(state: MapSearchState, onRouteSelected: (RouteResult) -> Unit, mod
         System.currentTimeMillis()
     }
     val addressIndex = remember { AssetRepository.getAddressIndex(context) }
-    val graph = remember { AssetRepository.getGraph(context) }
-    val sources = remember { AssetRepository.getSources(context) }
-    val sourceColors = remember { sources.associate { it.key to SettingsRepository.getSourceColor(context, it.key) } }
+    // (2026-11-21) Reti di supporto attive (raccordi e/o heat map,
+    // Impostazioni; di default entrambe): un grafo per rete, percorsi
+    // calcolati su ciascuno e uniti (unisciPercorsiReti). Sorgenti = unione
+    // di quelle dei grafi (SIC compare in entrambi, una volta sola).
+    val reti = remember(state.reteGen) {
+        AssetRepository.retiEffettive(context, SettingsRepository.getRetiAttive(context))
+    }
+    val graphs = remember(reti) { reti.map { AssetRepository.getGraph(context, it) } }
+    val sources = remember(reti) { reti.flatMap { AssetRepository.getSources(context, it) }.distinctBy { it.key } }
+    val sourceColors = remember(sources) { sources.associate { it.key to SettingsRepository.getSourceColor(context, it.key) } }
     // (2026-10-14) Sorgenti FISSE: tutte quelle del grafo pubblicato (SIC +
     // raccordi), nessuna scelta dell'utente. Parametri di calcolo, colori e
     // larghezze dalla nuova pagina Impostazioni (ImpostazioniScreen).
     val appParams = remember { SettingsRepository.getAppRoutingParams(context) }
     // (2026-11-01) "Evita parchi": i percorsi nel verde escono dal grafo,
     // (2026-11-02) insieme ai raccordi che servono solo a collegarli.
-    val enabledSources = remember {
+    val enabledSources = remember(sources) {
         sources.map { it.key }.filter { !(appParams.evitaParchi && dipendeDalVerde(it)) }.toSet()
     }
     val trackStyles = remember { (0..MAX_NUMERO_PERCORSI).associateWith { SettingsRepository.getTrackStyle(context, it) } }
     val density = remember { context.resources.displayMetrics.density }
-    val filteredGraph = remember(enabledSources) {
-        val t1 = System.currentTimeMillis()
-        FilteredGraph(graph, enabledSources).also {
-            Log.d(
-                PERF_TAG,
-                "FilteredGraph: ${System.currentTimeMillis() - t1} ms, ${it.activeEdgeIds.size} archi attivi " +
-                    "(t=${System.currentTimeMillis() - t0} ms da inizio MapScreen)",
-            )
+    val filteredGraphs = remember(graphs, enabledSources) {
+        graphs.map { graph ->
+            val t1 = System.currentTimeMillis()
+            FilteredGraph(graph, enabledSources).also {
+                Log.d(
+                    PERF_TAG,
+                    "FilteredGraph: ${System.currentTimeMillis() - t1} ms, ${it.activeEdgeIds.size} archi attivi " +
+                        "(t=${System.currentTimeMillis() - t0} ms da inizio MapScreen)",
+                )
+            }
         }
     }
 
@@ -330,12 +346,23 @@ fun MapScreen(state: MapSearchState, onRouteSelected: (RouteResult) -> Unit, mod
     // partenza/arrivo - es. dopo "Indietro" dal dettaglio percorso - non
     // ricalcola nulla, lascia state.routes (gia' hoisted, vedi
     // MapSearchState) com'erano.
-    LaunchedEffect(resolvedStart, state.endPoint, enabledSources, appParams) {
+    LaunchedEffect(resolvedStart, state.endPoint, filteredGraphs, appParams) {
         val start = resolvedStart
         val end = state.endPoint
         val tSearch0 = System.currentTimeMillis()
+        // (2026-11-20) Calcolo fuori dal thread principale: l'interfaccia non
+        // si blocca durante la ricerca. Se partenza/arrivo cambiano nel
+        // frattempo, l'effetto viene annullato e il risultato vecchio scartato.
+        // (2026-11-21) Una ricerca per rete, in parallelo (un thread per rete),
+        // poi l'unione: taglio del primo/ultimo miglio, i primi due di reti
+        // diverse, poi per costo pesato.
         state.routes = if (start != null && end != null) {
-            findAppRoutes(filteredGraph, start, end, appParams)
+            withContext(Dispatchers.Default) {
+                val perRete = coroutineScope {
+                    filteredGraphs.map { fg -> async { findAppRoutes(fg, start, end, appParams) } }.awaitAll()
+                }
+                unisciPercorsiReti(perRete, appParams, start, end)
+            }
         } else {
             emptyList()
         }
@@ -504,9 +531,17 @@ fun MapScreen(state: MapSearchState, onRouteSelected: (RouteResult) -> Unit, mod
                     var fatto = false
                     lateinit var check: Runnable
                     check = Runnable {
-                        if (!fatto && states.total > 0 && states.upToDate + states.notFound == states.total) {
+                        // (2026-11-20) Contano come pronte anche le tile scadute
+                        // (gia' disegnate dalla cache, osmdroid le riscarica in
+                        // background): prima si aspettava il riscaricamento.
+                        if (!fatto && states.total > 0 &&
+                            states.upToDate + states.expired + states.notFound == states.total
+                        ) {
                             fatto = true
-                            Log.d(PERF_TAG, "tiles pronte: ${states.total} tile, zoom ${mapView.zoomLevelDouble}")
+                            Log.d(
+                                PERF_TAG,
+                                "tiles pronte: ${states.total} tile (${states.expired} scadute), zoom ${mapView.zoomLevelDouble}",
+                            )
                             // non durante il giro su runAfters (modifica concorrente)
                             mapView.post {
                                 states.runAfters.remove(check)
@@ -596,13 +631,20 @@ fun MapScreen(state: MapSearchState, onRouteSelected: (RouteResult) -> Unit, mod
     // Riusa filteredGraph (gia' calcolato per il routing) invece di
     // ricostruire qualcosa di nuovo.
     var networkOverlayPolylines by remember { mutableStateOf<List<Polyline>>(emptyList()) }
-    LaunchedEffect(mapView, filteredGraph, networkOverlaySources) {
+    LaunchedEffect(mapView, filteredGraphs, networkOverlaySources) {
         networkOverlayPolylines.forEach { mapView.overlays.remove(it) }
 
         val netStyle = trackStyles[0] ?: TrackStyle.defaultFor(0)
-        networkOverlayPolylines = filteredGraph.activeEdgeIds
-            .map { filteredGraph.graph.edges[it] }
-            .filter { it.source in networkOverlaySources }
+        // (2026-11-21) Con piu' reti, una sorgente presente in piu' grafi
+        // (SIC) si disegna solo dal primo che la contiene.
+        val giaDisegnate = HashSet<String>()
+        networkOverlayPolylines = filteredGraphs.flatMap { fg ->
+            val edges = fg.activeEdgeIds
+                .map { fg.graph.edges[it] }
+                .filter { it.source in networkOverlaySources && it.source !in giaDisegnate }
+            giaDisegnate.addAll(fg.activeEdgeIds.map { fg.graph.edges[it].source })
+            edges
+        }
             .map { edge ->
                 val isSic = SourceDisplay.isSicFamily(edge.source)
                 Polyline().apply {

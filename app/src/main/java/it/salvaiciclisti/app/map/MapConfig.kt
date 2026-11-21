@@ -41,6 +41,10 @@ fun ensureOsmdroidConfigured(context: Context) {
     config.userAgentValue = appContext.packageName
     config.tileFileSystemCacheMaxBytes = 500L * 1024 * 1024
     config.tileFileSystemCacheTrimBytes = 450L * 1024 * 1024
-    config.expirationOverrideDuration = Long.MAX_VALUE
+    // (2026-11-20) Prima Long.MAX_VALUE: osmdroid calcola la scadenza come
+    // adesso + override, la somma andava in overflow (scadenza negativa) e
+    // ogni tile letta dalla cache risultava scaduta e veniva riscaricata.
+    // 100 anni: in pratica mai, senza overflow.
+    config.expirationOverrideDuration = 100L * 365 * 24 * 3600 * 1000
     osmdroidConfigured = true
 }

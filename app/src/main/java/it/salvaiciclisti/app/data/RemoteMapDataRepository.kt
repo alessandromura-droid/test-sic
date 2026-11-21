@@ -85,6 +85,12 @@ object RemoteMapDataRepository {
     fun getLocalVersion(context: Context): String? =
         prefs(context).getString(KEY_LOCAL_VERSION, null)
 
+    /** (2026-11-20) Usata da [BundledMapData] dopo aver installato la mappa
+     * dell'APK: la versione locale diventa quella dell'APK. */
+    fun setLocalVersion(context: Context, version: String) {
+        prefs(context).edit().putString(KEY_LOCAL_VERSION, version).apply()
+    }
+
     /**
      * Scarica ed installa i file richiesti ([REQUIRED_ASSETS]), poi tenta
      * (best-effort, vedi [OPTIONAL_ASSETS]) quelli facoltativi. Scrive prima

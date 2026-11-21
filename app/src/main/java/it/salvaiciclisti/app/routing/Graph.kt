@@ -333,6 +333,10 @@ class FilteredGraph(val graph: RoutingGraph, val enabledSources: Set<String>) {
      * pero' instradabile quando partenza e arrivo stanno davvero sullo
      * stesso ramo isolato (in quel caso e' la loro unica componente in
      * comune, e viene accettata). */
+    /** (2026-11-20) Indice a griglia per lo snap, solo sugli archi attivi:
+     * costruito alla prima ricerca e poi riusato (vedi [SnapIndex]). */
+    internal val snapIndex: SnapIndex by lazy { SnapIndex(graph, activeEdgeIds) }
+
     val componentId: IntArray by lazy {
         // Componenti NON orientate: [adjacency] omette il verso vietato dei
         // sensi unici, qui servono entrambi.
@@ -422,8 +426,10 @@ fun snapToGraph(graph: RoutingGraph, target: LatLon, enabledSources: Set<String>
  * lascia archi attivi).
  */
 fun snapPairToGraph(filtered: FilteredGraph, start: LatLon, end: LatLon, maxCandidatesPerSide: Int = 6): Pair<GraphSnap, GraphSnap>? {
-    val startCandidates = topSnapCandidates(filtered.graph, start, filtered.enabledSources, maxCandidatesPerSide)
-    val endCandidates = topSnapCandidates(filtered.graph, end, filtered.enabledSources, maxCandidatesPerSide)
+    // (2026-11-20) Candidati dall'indice a griglia (stesso risultato della
+    // vecchia scansione completa, vedi SnapIndex).
+    val startCandidates = filtered.snapIndex.nearestEdges(start, maxCandidatesPerSide)
+    val endCandidates = filtered.snapIndex.nearestEdges(end, maxCandidatesPerSide)
     if (startCandidates.isEmpty() || endCandidates.isEmpty()) return null
 
     fun componentOf(snap: GraphSnap): Int = filtered.componentId[filtered.graph.edges[snap.edgeId].a]
@@ -443,37 +449,4 @@ fun snapPairToGraph(filtered: FilteredGraph, start: LatLon, end: LatLon, maxCand
         }
     }
     return best
-}
-
-/** Come la scansione dentro [snapToGraph], ma tiene i migliori [limit]
- * candidati (un arco al massimo ciascuno) invece del solo migliore in
- * assoluto - serve a [snapPairToGraph] per poter scartare un candidato la
- * cui componente non porta all'altro capo e provare il successivo. */
-private fun topSnapCandidates(graph: RoutingGraph, target: LatLon, enabledSources: Set<String>, limit: Int): List<GraphSnap> {
-    data class Scored(val snap: GraphSnap, val distanceM: Double)
-    val found = ArrayList<Scored>()
-    for (edge in graph.edges) {
-        if (edge.source !in enabledSources) continue
-        var distanceBeforeSegment = 0.0
-        var bestForThisEdge: GraphSnap? = null
-        for (i in 0 until edge.geom.size - 1) {
-            val segA = edge.geom[i]
-            val segB = edge.geom[i + 1]
-            val segLength = haversineMeters(segA, segB)
-            val res = closestPointOnSegment(target, segA, segB)
-            val current = bestForThisEdge
-            if (current == null || res.distanceM < current.distanceFromInputM) {
-                bestForThisEdge = GraphSnap(
-                    edgeId = edge.id,
-                    segmentIndex = i,
-                    point = res.point,
-                    distanceFromInputM = res.distanceM,
-                    distanceAlongEdgeM = distanceBeforeSegment + res.fraction * segLength,
-                )
-            }
-            distanceBeforeSegment += segLength
-        }
-        bestForThisEdge?.let { found.add(Scored(it, it.distanceFromInputM)) }
-    }
-    return found.sortedBy { it.distanceM }.take(limit).map { it.snap }
 }

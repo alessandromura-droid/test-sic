@@ -1,3 +1,5 @@
+import java.security.MessageDigest
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -110,4 +112,69 @@ val linkTestReportGpx by tasks.registering {
 
 tasks.withType<Test>().configureEach {
     finalizedBy(linkTestReportGpx)
+}
+
+// (2026-11-20) Mappa piu' recente dentro l'APK: per ora i dati non si
+// pubblicano su GitHub (Alessandro). Prima di ogni build copia in
+// src/main/assets/routing/ (esclusa dal repository, vedi .gitignore):
+// graph.json e sources_manifest.json dalla prima cartella della pipeline che li
+// ha entrambi (routing_v4, poi routing_v3, poi routing), indirizzi.json e
+// layers.json dalla prima che li ha; toglie da li' ogni altro file (le mappe
+// vecchie incluse a suo tempo) e scrive bundle_version.txt (sha256 dei
+// contenuti, 16 caratteri). L'app (BundledMapData.kt) installa questi dati al
+// primo avvio di ogni APK con una mappa diversa. Riscrive un file solo se il
+// contenuto cambia, cosi' le build successive non rifanno il merge degli asset.
+val copiaMappaNellApk by tasks.registering {
+    val percorsiBuild = rootProject.file("percorsi/build")
+    val dest = file("src/main/assets/routing")
+    outputs.dir(dest)
+    outputs.upToDateWhen { false }
+    doLast {
+        val ordine = listOf("routing_v4", "routing_v3", "routing").map { File(percorsiBuild, it) }
+        val grafoDir = ordine.firstOrNull {
+            File(it, "graph.json").isFile && File(it, "sources_manifest.json").isFile
+        } ?: throw GradleException(
+            "mappa nell'APK: nessuna cartella con graph.json e sources_manifest.json in $percorsiBuild " +
+                "(routing_v4, routing_v3, routing): eseguire prima la pipeline",
+        )
+        val scelti = linkedMapOf(
+            "graph.json" to File(grafoDir, "graph.json"),
+            "sources_manifest.json" to File(grafoDir, "sources_manifest.json"),
+        )
+        // (2026-11-20) grafo heat map: dalla stessa cartella del grafo, solo se
+        // ci sono entrambi i file (altrimenti l'app usa solo i raccordi)
+        val hmGrafo = File(grafoDir, "graph_heatmap.json")
+        val hmManifest = File(grafoDir, "sources_manifest_heatmap.json")
+        if (hmGrafo.isFile && hmManifest.isFile) {
+            scelti["graph_heatmap.json"] = hmGrafo
+            scelti["sources_manifest_heatmap.json"] = hmManifest
+        } else {
+            logger.warn("mappa nell'APK: graph_heatmap.json/sources_manifest_heatmap.json non trovati in ${grafoDir.name}, grafo heat map non incluso")
+        }
+        for (nome in listOf("indirizzi.json", "layers.json")) {
+            val f = ordine.map { File(it, nome) }.firstOrNull { it.isFile }
+            if (f != null) scelti[nome] = f else logger.warn("mappa nell'APK: $nome non trovato, non incluso")
+        }
+        dest.mkdirs()
+        dest.listFiles()
+            ?.filter { it.isFile && it.name !in scelti.keys && it.name != "bundle_version.txt" }
+            ?.forEach { it.delete() }
+        val md = MessageDigest.getInstance("SHA-256")
+        for ((nome, src) in scelti) {
+            val bytes = src.readBytes()
+            md.update(nome.toByteArray())
+            md.update(bytes)
+            val out = File(dest, nome)
+            if (!out.isFile || !out.readBytes().contentEquals(bytes)) out.writeBytes(bytes)
+            logger.lifecycle("mappa nell'APK: $nome <- ${src.parentFile.name}/${src.name}")
+        }
+        val versione = md.digest().joinToString("") { "%02x".format(it) }.take(16)
+        val vf = File(dest, "bundle_version.txt")
+        if (!vf.isFile || vf.readText() != versione) vf.writeText(versione)
+        logger.lifecycle("mappa nell'APK: versione $versione")
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn(copiaMappaNellApk)
 }

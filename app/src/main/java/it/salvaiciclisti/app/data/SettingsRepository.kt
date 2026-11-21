@@ -34,9 +34,17 @@ private const val KEY_APP_PESO_KM = "app_peso_km"
 private const val KEY_APP_PESO_SALITA = "app_peso_salita"
 private const val KEY_APP_MARGINE = "app_margine_percent"
 private const val KEY_APP_ARRETRAMENTO = "app_arretramento_percent"
+private const val KEY_APP_RAGGIO_MIGLIO = "app_raggio_primo_ultimo_miglio_km"
 private const val KEY_STYLE_PREFIX = "style_"
 private const val KEY_NETWORK_OVERLAY = "network_overlay_sources"
+private const val KEY_RETI_ATTIVE = "reti_attive"
 const val MAX_NUMERO_PERCORSI = 6
+
+/** (2026-11-20) Rete che collega SIC, cioe' quale grafo usa l'app
+ * ((2026-11-21) di default entrambe, vedi [SettingsRepository.getRetiAttive]):
+ * [RACCORDI] = graph.json (SIC + raccordi + accessi, deterministici),
+ * [HEATMAP] = graph_heatmap.json (SIC + strade piu' percorse della heat map). */
+enum class ReteSupporto { RACCORDI, HEATMAP }
 
 /**
  * Tutte le preferenze persistite dalla schermata Impostazioni. Defaults:
@@ -225,6 +233,7 @@ object SettingsRepository {
                 KEY_APP_ARRETRAMENTO,
                 d.arretramentoMassimoPercent.toFloat(),
             ).toDouble(),
+            raggioPrimoUltimoMiglioKm = prefs.getFloat(KEY_APP_RAGGIO_MIGLIO, d.raggioPrimoUltimoMiglioKm.toFloat()).toDouble(),
             sicKey = SourceDisplay.SIC_KEY,
         )
     }
@@ -246,6 +255,7 @@ object SettingsRepository {
             .putFloat(KEY_APP_PESO_SALITA, p.pesoSalita.toFloat())
             .putFloat(KEY_APP_MARGINE, p.margineMassimoPercent.toFloat())
             .putFloat(KEY_APP_ARRETRAMENTO, p.arretramentoMassimoPercent.toFloat())
+            .putFloat(KEY_APP_RAGGIO_MIGLIO, p.raggioPrimoUltimoMiglioKm.toFloat())
             .apply()
     }
 
@@ -285,5 +295,33 @@ object SettingsRepository {
     fun setNetworkOverlaySources(context: Context, sources: Set<String>) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putStringSet(KEY_NETWORK_OVERLAY, sources).apply()
+    }
+
+    /** (2026-11-21) Reti di supporto attive (vedi [ReteSupporto]): di
+     * default ENTRAMBE (l'app propone percorsi su tutte e due, vedi
+     * unisciPercorsiReti in AppRouting.kt). Mai vuoto: vedi [cambiaRete].
+     * Se il grafo heat map non c'e', AssetRepository.retiEffettive la toglie. */
+    fun getRetiAttive(context: Context): Set<ReteSupporto> {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val set = prefs.getStringSet(KEY_RETI_ATTIVE, null)
+            ?.mapNotNull { runCatching { ReteSupporto.valueOf(it) }.getOrNull() }?.toSet()
+        return if (set.isNullOrEmpty()) ReteSupporto.values().toSet() else set
+    }
+
+    fun setRetiAttive(context: Context, reti: Set<ReteSupporto>) {
+        val valide = reti.ifEmpty { ReteSupporto.values().toSet() }
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putStringSet(KEY_RETI_ATTIVE, valide.map { it.name }.toSet()).apply()
+    }
+
+    /** Accende o spegne [rete] e ritorna l'insieme risultante (gia' salvato).
+     * Spegnendo l'ultima rete accesa si riaccendono le altre, cioe' (con due
+     * reti) quella spenta per penultima (Alessandro, 2026-11-21). */
+    fun cambiaRete(context: Context, rete: ReteSupporto, accesa: Boolean): Set<ReteSupporto> {
+        val attuali = getRetiAttive(context)
+        var nuove = if (accesa) attuali + rete else attuali - rete
+        if (nuove.isEmpty()) nuove = ReteSupporto.values().toSet() - rete
+        setRetiAttive(context, nuove)
+        return nuove
     }
 }

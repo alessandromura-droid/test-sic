@@ -14,8 +14,8 @@
 !/gradlew
 !/gradlew.bat
 
-# dentro l'app: build, file locali e mappe incluse a suo tempo nell'APK
-# (ora l'app le scarica; le mappe andranno in un repository a parte)
+# dentro l'app: build, file locali e mappe (copiate nell'APK a ogni build da
+# copiaMappaNellApk; l'APK va sulla release "apk-debug", vedi howto.md)
 /app/build/
 /app/src/main/assets/routing/
 .DS_Store

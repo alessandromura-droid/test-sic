@@ -31,7 +31,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import it.salvaiciclisti.app.data.AssetRepository
+import it.salvaiciclisti.app.data.BundledMapData
 import it.salvaiciclisti.app.data.RemoteMapDataRepository
+import it.salvaiciclisti.app.data.ReteSupporto
 import it.salvaiciclisti.app.data.SettingsRepository
 import it.salvaiciclisti.app.map.MapScreen
 import it.salvaiciclisti.app.map.MapSearchState
@@ -76,6 +78,9 @@ class MainActivity : ComponentActivity() {
      *   adb shell am start -S -n it.salvaiciclisti.app/.MainActivity
      *       --es partenza "lat,lon" --es arrivo "lat,lon"
      *       [--es nome_partenza "..."] [--es nome_arrivo "..."]
+     *       [--es grafo raccordi|heatmap|entrambi]
+     * (2026-11-20) "grafo" imposta le reti di supporto attive (come da
+     * Impostazioni, e ci restano; (2026-11-21) "entrambi" = tutte e due).
      * Nella build release gli extra vengono ignorati. */
     private fun debugPrefillFrom(i: Intent?): DebugPrefill? {
         if (i == null || (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) return null
@@ -86,12 +91,24 @@ class MainActivity : ComponentActivity() {
             end,
             i.getStringExtra("nome_partenza") ?: "Partenza",
             i.getStringExtra("nome_arrivo") ?: "Arrivo",
+            when (i.getStringExtra("grafo")?.trim()?.lowercase()) {
+                "heatmap" -> setOf(ReteSupporto.HEATMAP)
+                "raccordi" -> setOf(ReteSupporto.RACCORDI)
+                "entrambi", "entrambe" -> ReteSupporto.values().toSet()
+                else -> null
+            },
         )
     }
 }
 
 /** Partenza/arrivo impostati all'avvio (solo debug, vedi debugPrefillFrom). */
-data class DebugPrefill(val start: LatLon, val end: LatLon, val startName: String, val endName: String)
+data class DebugPrefill(
+    val start: LatLon,
+    val end: LatLon,
+    val startName: String,
+    val endName: String,
+    val reti: Set<ReteSupporto>? = null,
+)
 
 private fun parseLatLon(s: String?): LatLon? {
     val p = s?.split(",")?.mapNotNull { it.trim().toDoubleOrNull() } ?: return null
@@ -149,11 +166,18 @@ fun SalvaiciclistiApp(prefill: DebugPrefill? = null) {
     // percorso torni alla mappa con i percorsi appena trovati ancora
     // presenti, invece che vuota.
     val mapSearchState = remember { MapSearchState() }
+    val context = LocalContext.current
     // Avvio debug con partenza/arrivo (anche ripetuto, ad app aperta): si
     // torna alla mappa e si impostano i due punti; MapScreen ricalcola i
     // percorsi e li inquadra.
     LaunchedEffect(prefill) {
         prefill?.let {
+            it.reti?.let { reti ->
+                if (reti != SettingsRepository.getRetiAttive(context)) {
+                    SettingsRepository.setRetiAttive(context, reti)
+                    mapSearchState.reteGen++
+                }
+            }
             screen = Screen.Tabs
             currentTab = BottomTab.NAVIGA
             mapSearchState.routes = emptyList()
@@ -256,7 +280,11 @@ private fun MapDataGate(content: @Composable () -> Unit) {
     var hasLocalData by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
-        hasLocalData = withContext(Dispatchers.IO) { AssetRepository.hasLocalData(context) }
+        hasLocalData = withContext(Dispatchers.IO) {
+            // (2026-11-20) prima la mappa contenuta nell'APK, se e' nuova
+            BundledMapData.installIfNeeded(context)
+            AssetRepository.hasLocalData(context)
+        }
     }
 
     when (hasLocalData) {

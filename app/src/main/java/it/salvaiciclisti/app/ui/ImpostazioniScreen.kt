@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +37,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import it.salvaiciclisti.app.data.MAX_NUMERO_PERCORSI
+import it.salvaiciclisti.app.data.AssetRepository
 import it.salvaiciclisti.app.data.PALETTE_COLORI
+import it.salvaiciclisti.app.data.ReteSupporto
 import it.salvaiciclisti.app.data.SettingsRepository
 import it.salvaiciclisti.app.data.TrackStyle
 import it.salvaiciclisti.app.map.MapStyle
@@ -72,6 +75,12 @@ fun ImpostazioniScreen() {
         mutableStateOf((0..MAX_NUMERO_PERCORSI).associateWith { SettingsRepository.getTrackStyle(context, it) })
     }
     var colorTarget by remember { mutableStateOf<ColorTarget?>(null) }
+    // (2026-11-21) Reti di supporto: raccordi (graph.json) e heat map
+    // (graph_heatmap.json), entrambe accese di default, non alternative; la
+    // heat map si puo' accendere solo se installata. Spegnendo l'ultima
+    // accesa si riaccende l'altra (SettingsRepository.cambiaRete).
+    var reti by remember { mutableStateOf(SettingsRepository.getRetiAttive(context)) }
+    val heatmapDisponibile = remember { AssetRepository.hasHeatmapData(context) }
 
     fun updateParams(update: (AppRoutingParams) -> AppRoutingParams) {
         val updated = update(params)
@@ -88,6 +97,35 @@ fun ImpostazioniScreen() {
     Scaffold(topBar = { TopAppBar(title = { Text("Impostazioni") }) }) { padding: PaddingValues ->
         LazyColumn(modifier = Modifier.fillMaxWidth().padding(padding)) {
             item { SectionTitle("Calcolo del percorso") }
+            item {
+                Text(
+                    "Reti che collegano SIC (percorsi proposti su ciascuna)",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+                listOf(
+                    ReteSupporto.RACCORDI to "Raccordi (deterministici)",
+                    ReteSupporto.HEATMAP to
+                        if (heatmapDisponibile) "Heat map (strade più percorse)"
+                        else "Heat map (non presente in questa mappa)",
+                ).forEach { (candidate, label) ->
+                    val enabled = candidate == ReteSupporto.RACCORDI || heatmapDisponibile
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // Senza heat map installata la rete e' solo raccordi:
+                        // la casella raccordi resta accesa e non si spegne.
+                        Checkbox(
+                            checked = if (heatmapDisponibile) candidate in reti else candidate == ReteSupporto.RACCORDI,
+                            enabled = enabled && heatmapDisponibile,
+                            onCheckedChange = { accesa ->
+                                reti = SettingsRepository.cambiaRete(context, candidate, accesa)
+                            },
+                        )
+                        Text(label)
+                    }
+                }
+            }
             item {
                 listOf(
                     RoutingEngine.JGRAPHT to "Dijkstra (libreria JGraphT)",
@@ -182,6 +220,14 @@ fun ImpostazioniScreen() {
             item {
                 NumberField("Arretramento massimo rispetto alla meta (%)", params.arretramentoMassimoPercent) { v ->
                     updateParams { it.copy(arretramentoMassimoPercent = v) }
+                }
+            }
+            item {
+                // (2026-11-21) Primo/ultimo miglio: dentro questo raggio attorno
+                // a partenza e arrivo i giri del percorso vengono tagliati
+                // (tagliaPrimoUltimoMiglio in AppRouting.kt); 0 = nessun taglio.
+                NumberField("Raggio primo/ultimo miglio (km, 0 = nessun taglio)", params.raggioPrimoUltimoMiglioKm) { v ->
+                    updateParams { it.copy(raggioPrimoUltimoMiglioKm = v) }
                 }
             }
 

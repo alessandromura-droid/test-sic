@@ -30,37 +30,73 @@ private const val PERF_TAG = "SiCPerf"
  * togliere una volta capito.)
  */
 object AssetRepository {
-    @Volatile private var graph: RoutingGraph? = null
-    @Volatile private var sources: List<SourceInfo>? = null
+    // (2026-11-20) Un grafo e un manifest per rete (vedi [ReteSupporto]):
+    // chiave = nome del file letto.
+    private val graphs = HashMap<String, RoutingGraph>()
+    private val sourcesByFile = HashMap<String, List<SourceInfo>>()
     @Volatile private var addressIndex: AddressIndex? = null
     @Volatile private var detailLayers: List<DetailLayer>? = null
 
-    fun getGraph(context: Context): RoutingGraph =
-        graph ?: synchronized(this) {
-            graph ?: run {
+    private const val GRAPH_HEATMAP = "graph_heatmap.json"
+    private const val MANIFEST_HEATMAP = "sources_manifest_heatmap.json"
+
+    /** Vero se il grafo heat map (graph_heatmap.json + il suo manifest) e'
+     * installato. I/O su disco minimo (due File.exists). */
+    fun hasHeatmapData(context: Context): Boolean {
+        val dir = routingDir(context)
+        return File(dir, GRAPH_HEATMAP).exists() && File(dir, MANIFEST_HEATMAP).exists()
+    }
+
+    /** Rete effettivamente usata: HEATMAP solo se richiesta e installata,
+     * altrimenti RACCORDI. */
+    fun reteEffettiva(context: Context, rete: ReteSupporto): ReteSupporto =
+        if (rete == ReteSupporto.HEATMAP && hasHeatmapData(context)) ReteSupporto.HEATMAP else ReteSupporto.RACCORDI
+
+    /** (2026-11-21) Reti effettivamente usabili fra quelle richieste, in
+     * ordine fisso (RACCORDI, HEATMAP), senza doppioni: la heat map non
+     * installata diventa RACCORDI. Mai vuota. */
+    fun retiEffettive(context: Context, reti: Set<ReteSupporto>): List<ReteSupporto> =
+        ReteSupporto.values().filter { it in reti }.map { reteEffettiva(context, it) }.distinct()
+            .ifEmpty { listOf(ReteSupporto.RACCORDI) }
+
+    private fun graphFile(context: Context, rete: ReteSupporto): String =
+        if (reteEffettiva(context, rete) == ReteSupporto.HEATMAP) GRAPH_HEATMAP else "graph.json"
+
+    private fun manifestFile(context: Context, rete: ReteSupporto): String =
+        if (reteEffettiva(context, rete) == ReteSupporto.HEATMAP) MANIFEST_HEATMAP else "sources_manifest.json"
+
+    fun getGraph(context: Context, rete: ReteSupporto = ReteSupporto.RACCORDI): RoutingGraph {
+        val name = graphFile(context, rete)
+        return synchronized(this) {
+            // (2026-11-21) Entrambi i grafi possono stare in memoria insieme
+            // (l'app calcola su tutte e due le reti); prima se ne teneva uno.
+            graphs.getOrPut(name) {
                 val tRead0 = System.currentTimeMillis()
-                val text = readLocalFile(context, "graph.json")
+                val text = readLocalFile(context, name)
                 val tRead1 = System.currentTimeMillis()
                 val g = GraphLoader.parse(text)
                 val tParse1 = System.currentTimeMillis()
                 Log.d(
                     PERF_TAG,
-                    "getGraph: lettura file ${tRead1 - tRead0} ms, parse ${tParse1 - tRead1} ms - " +
+                    "getGraph($name): lettura file ${tRead1 - tRead0} ms, parse ${tParse1 - tRead1} ms - " +
                         "${g.nodes.size} nodi, ${g.edges.size} archi",
                 )
                 g
-            }.also { graph = it }
+            }
         }
+    }
 
-    fun getSources(context: Context): List<SourceInfo> =
-        sources ?: synchronized(this) {
-            sources ?: run {
+    fun getSources(context: Context, rete: ReteSupporto = ReteSupporto.RACCORDI): List<SourceInfo> {
+        val name = manifestFile(context, rete)
+        return synchronized(this) {
+            sourcesByFile.getOrPut(name) {
                 val t0 = System.currentTimeMillis()
-                val list = SourcesManifestLoader.parse(readLocalFile(context, "sources_manifest.json"))
-                Log.d(PERF_TAG, "getSources: ${System.currentTimeMillis() - t0} ms, ${list.size} sorgenti")
+                val list = SourcesManifestLoader.parse(readLocalFile(context, name))
+                Log.d(PERF_TAG, "getSources($name): ${System.currentTimeMillis() - t0} ms, ${list.size} sorgenti")
                 list
-            }.also { sources = it }
+            }
         }
+    }
 
     /** Null se indirizzi.json non e' disponibile (es. l'ultimo precompila.py
      * ha fallito la sua fetch Overpass per l'indice indirizzi, mentre il
@@ -112,8 +148,8 @@ object AssetRepository {
      * "scambiare" il grafo a caldo mentre e' in uso. */
     fun invalidate() {
         synchronized(this) {
-            graph = null
-            sources = null
+            graphs.clear()
+            sourcesByFile.clear()
             addressIndex = null
             detailLayers = null
         }
